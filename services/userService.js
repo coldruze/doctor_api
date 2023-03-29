@@ -10,7 +10,6 @@ import {AppointmentDto} from "../dto/appointmentDto.js";
 
 class UserService {
     async appointmentToDoctor(userId, doctorId, slot) {
-        const timeSlot = new Date(slot);
         const candidate = await AppointmentModel.findOne({userId, doctorId});
         const doctor = await Doctor.findOne({id: doctorId});
         const user = await User.findOne({id: userId});
@@ -19,26 +18,23 @@ class UserService {
             throw new ApiError(400, "Такого доктора не существует");
         } else if (!user) {
             throw new ApiError(400, "Такого пользователя не существует");
-        } else if (!doctor.slots.indexOf(timeSlot)) {
-            throw new ApiError(400,"Запись на выбранное время невозможна");
         } else if (candidate) {
             throw new ApiError(400,"Пользователь уже записан к этому доктору");
         }
 
-        if (candidate) {
-            throw new ApiError(400,"Пользователь уже записан к этому доктору");
+        let slots = doctor.slots;
+        slots = slots.map(el => +el);
+
+        if (!slots.includes(slot)) {
+            throw new ApiError(400,"Запись на выбранное время невозможна");
         }
 
-        const slots = doctor.slots;
-        slots.forEach((slot) => {
-            if (slot === timeSlot) {
-                // delete slot;
-            }
+        slots.splice(slots.indexOf(slot), 1);
+        slots = slots.map(el => new Date(el));
 
-        })
-        const updatedDoctor = await Doctor.findOneAndUpdate({id: doctorId});
+        await Doctor.findOneAndUpdate({id: doctorId}, {slots}, {new: true});
 
-        const appointment = await AppointmentModel.create({userId, doctorId, slot: timeSlot});
+        const appointment = await AppointmentModel.create({userId, doctorId, slot: new Date(slot)});
 
         return new AppointmentDto(appointment);
     }
